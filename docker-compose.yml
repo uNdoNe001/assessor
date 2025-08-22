@@ -35,7 +35,7 @@ services:
     volumes:
       - ./frontend:/usr/src/app
       - /usr/src/app/node_modules   # <-- preserve container's node_modules
-    command: ["npm","run","dev","--","-H","0.0.0.0","-p","3000"]  # bind to all interfaces
+    command: ["npm","run","dev"]
 
 volumes:
   db_data:
