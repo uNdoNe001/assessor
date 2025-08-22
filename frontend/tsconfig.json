@@ -1,11 +1,1580 @@
+Skip to content
+Chat history
+
+You said:
+we currently use cynomi, its a fantastic tool.  How hard would it be for you and i to make our own version of this tool so my company can use its own software?  It has to be similar with the small, tiktok like assessments (many short ones) to do gap analysis for ISO27001 and SOC2 and spit out a report as well as generate policies for a customer.  It woudl need to have rbac along with a dashboard for each customer i entered.
+
+Thoughts? could we do this?
+ChatGPT said:
+
+Thought for 1m 33s
+Short answer: yes—this is very doable. Below is a concrete, buildable plan for an MVP that mimics Cynomi’s strengths (micro-assessments, gap analysis, reporting, and policy generation), but as your own multi-tenant app with RBAC and client dashboards.
+
+What the MVP includes (and nothing extra)
+Assessment engine (micro-assessments)
+
+“TikTok-style” cards: one short question per screen, swipe/next, progress bar, evidence upload/notes.
+
+Question bank mapped to ISO/IEC 27001:2022 Annex A themes and SOC 2 TSC (Security + optional others). ISO 27001:2022 has 93 controls across 4 themes (Organizational, People, Physical, Technological). 
+Scrut
+ISMS.online
+
+SOC 2 uses the AICPA Trust Services Criteria (2017 TSC) with revised points of focus (2022). Security is mandatory and built on Common Criteria (CC1–CC9). 
+AICPA & CIMA
+Drata
+
+Scoring & gap analysis
+
+Per-question 0–4 maturity scale (Not Implemented → Optimized) + “N/A,” mapped to control(s).
+
+Risk score = impact × likelihood (1–5 each) + optional weight (e.g., regulatory impact).
+
+Auto-prioritized remediation backlog (“near-term wins,” “medium,” “strategic”).
+
+Policy generation
+
+LLM-driven templating: insert org variables (company name, scope, assets, legal region), align to selected controls, generate draft policy + redline suggestions.
+
+Keep your own template library; version and diff changes on every regeneration.
+
+Reporting
+
+One-click PDF/Word: executive summary, heatmap, radar chart, top gaps, prioritized roadmap, control coverage table, and evidence index.
+
+RBAC + multi-tenant dashboards
+
+Roles: PSS Owner, PSS Staff (Analyst), Client Admin, Client Contributor, Client Read-only, Auditor Read-only.
+
+Client dashboards: posture trend, gaps by domain/control, overdue actions, evidence status, policy status.
+
+High-level architecture (tried-and-true, fast to ship)
+Frontend
+
+Next.js (React) + TypeScript + Tailwind. Mobile-first card flow for micro-assessments.
+
+Backend
+
+Node.js (NestJS/Express) or Python (Django/FastAPI).
+
+PostgreSQL with Row-Level Security (RLS) for tenant isolation.
+
+Object storage (S3 or equivalent) for evidence & report files.
+
+Job queue (BullMQ/Celery) for report generation & long-running policy drafts.
+
+LLM provider abstraction (OpenAI/Azure/Open-source) behind a service interface.
+
+Security
+
+SSO (SAML/OIDC), MFA, SCIM optional.
+
+Encrypt at rest & in transit, signed URLs for evidence, audit logging of all read/write actions.
+
+Data retention & deletion policies per tenant.
+
+Integrations (nice-but-small)
+
+Email for reminders; optional Jira/Asana for pushing remediation tasks; Drive/SharePoint links for evidence.
+
+Data model sketch (core tables)
+organizations(id, name)
+
+users(id, email, name, …)
+
+memberships(user_id, organization_id, role)
+
+clients(id, organization_id, name, industry, region, …)
+
+assessments(id, client_id, framework, version, status)
+
+questions(id, text, guidance, weight, framework_tags[])
+
+question_mappings(question_id, iso_ref, soc2_ref) ← many-to-many
+
+answers(id, assessment_id, question_id, maturity, risk_impact, risk_likelihood, notes, evidence_id)
+
+tasks(id, client_id, title, description, priority, owner_user_id, due_date, status, control_refs[])
+
+policies(id, client_id, template_id, status, generated_text, vars_json, version)
+
+policy_templates(id, name, content_markdown, variables[])
+
+reports(id, client_id, assessment_id, file_path, created_at)
+
+audit_logs(id, org_id, user_id, action, object_type, object_id, at)
+
+RLS pattern: every row has organization_id (and usually client_id). Policies restrict SELECT/INSERT/UPDATE/DELETE to rows where organization_id ∈ user’s memberships.
+
+RBAC slice (practical defaults)
+PSS Owner: global org admin; manage staff, clients, templates, billing.
+
+PSS Staff (Analyst): create assessments, view all client data, generate reports/policies.
+
+Client Admin: full access in their tenant; invite client users; approve policies.
+
+Client Contributor: answer assessments, upload evidence, work tasks.
+
+Client Read-only: read dashboards/reports only.
+
+Auditor Read-only: time-boxed read access to specific assessments/evidence.
+
+Assessment design (micro format)
+Question JSON example
+
+{
+  "id": "Q-ISO-A5-Policy-01",
+  "text": "Do you have an approved, organization-wide information security policy?",
+  "help": "Upload latest approved version and approval date.",
+  "answers": ["No", "Planned", "Partially", "Implemented", "Optimized"],
+  "default_weight": 3,
+  "maps_to": {
+    "iso27001_2022": ["A.5.1"],
+    "soc2_tsc": ["Security: CC1/CC2"]
+  },
+  "evidence_required": true
+}
+Scoring
+
+Maturity (0–4) × weight → control score.
+
+Gap = target level (e.g., 3 for ISO “good practice”) − current.
+
+Risk = likelihood × impact (analyst or heuristic).
+
+Backlog builder uses Gap, Risk, and Effort to auto-prioritize.
+
+Notes on standards: ISO/IEC 27001:2022 consolidates into 93 controls / 4 themes; SOC 2 relies on 2017 TSC with 2022 revised points of focus—your app should store mappings (IDs/labels) and your own paraphrased guidance, not copyrighted control text. 
+Scrut
+ISMS.online
+AICPA & CIMA
+
+Policy generation approach (safe & repeatable)
+Template first: Your proprietary policy templates with tokens like {{CompanyName}}, {{Scope}}, {{ApplicableControls}}.
+
+LLM pass: “Fill and tailor” + tone/reading level + region/legal toggles; include control-to-section annotations for traceability.
+
+Guardrails: prompt templates + regex/post-processing (e.g., must include version, owner, review cycle).
+
+Versioning: every generation saved; diff viewer to compare edits.
+
+Reporting (what clients care about)
+Executive summary with overall posture trend.
+
+Heatmap by ISO theme / SOC 2 CC domain.
+
+Top 10 gaps + rationale + recommended actions.
+
+Control coverage table (IDs only), evidence index, and policy status.
+
+Export PDF/Docx.
+
+Legal & content considerations (important)
+ISO text is copyrighted. Store references (e.g., “A.5.1”) and your own guidance, not the verbatim control text.
+
+SOC 2 TSC is AICPA content; again, store IDs and your commentary; link out for the official text or require the client’s licensed copy. 
+AICPA & CIMA
+EY
+
+Rough build plan (lean team, real dates once we scope)
+Week 1–2: Discovery & seed content
+
+Pick 60–100 micro-questions that cover ISO 27001 themes + SOC 2 Security (CC1–CC9) well; define scoring. 
+Drata
+
+Week 3–5: Core app
+
+Auth/SSO, org/tenant model with RLS, question/answer flows, basic scoring & backlog, file uploads, audit log.
+
+Week 6–7: Reporting & policy generation
+
+Report generator (PDF/Docx), policy templating + LLM pass, versioning.
+
+Week 8: Hardening & pilot
+
+RBAC polish, rate limits, logging, error budgets, pilot with 1–2 clients.
+
+(That’s an MVP; expanding to dashboards, integrations, and SOC 2 Availability/Confidentiality/etc. can come next.)
+
+Sample micro-assessments (starter set, edit as you like)
+ISMS Policy approved & current? (ISO A.5.1; SOC2 Security CC1/CC2)
+
+Asset inventory maintained & reviewed quarterly? (ISO A.5.9; SOC2 CC3/CC4)
+
+Access reviews at least quarterly for critical systems? (ISO A.5.18; SOC2 CC6)
+
+MFA enforced for all remote admin access? (ISO A.8.4; SOC2 CC6)
+
+Threat monitoring/alerting in place with documented triage? (ISO A.8.16; SOC2 CC7)
+
+Secure software development policy & SAST/DAST gates? (ISO A.8.28; SOC2 CC7/PI)
+
+Backup policy + restoration testing evidence? (ISO A.8.13; SOC2 Availability)
+
+Vendor risk assessments performed pre-contract? (ISO A.5.22; SOC2 CC3/CC9)
+
+Incident response plan tested in last 12 months? (ISO A.5.24; SOC2 CC7)
+
+Change management with approvals & rollback? (ISO A.8.32; SOC2 CC8)
+
+(ISO control numbers/themes and SOC 2 structures referenced above: 27001:2022 93 controls / 4 themes; SOC 2 TSC common criteria.) 
+Scrut
+ISMS.online
+Drata
+
+Why this is realistic
+The feature set is focused and well understood.
+
+Multi-tenant + RBAC + reports + templated policy generation are standard patterns.
+
+The heaviest lift is the question bank & mappings (we’ll start narrow and expand).
+
+We stay on the right side of licensing by referencing control IDs and writing our own guidance. 
+AICPA & CIMA
+
+Your call: next concrete steps I can do immediately
+Turn the above into a clickable prototype (assessment flow + dashboard) and a seed question bank (~80 items) with mappings for ISO themes + SOC 2 Security.
+
+Draft 3 policy templates (InfoSec Policy, Access Control Policy, Incident Response Policy) with tokenized variables and LLM prompts.
+
+Outline your client report (one Docx & one PDF layout) and generate a sample from mock data.
+
+If this direction fits what you had in mind, I’ll start by seeding the question bank and first three policy templates in our next message.
+
+References you can share with stakeholders:
+
+ISO/IEC 27001:2022 moved to 93 controls across four themes (Organizational/People/Physical/Technological). 
+Scrut
+ISMS.online
+
+SOC 2 Trust Services Criteria: 2017 TSC with revised points of focus (2022); Security (with CC1–CC9) is mandatory. 
+AICPA & CIMA
+Drata
+
+You said:
+lets do it!  Shall we make this run in docker?  Ill create a blank repo in github to track this
+ChatGPT said:
+
+Thought for 37s
+heck yes — let’s docker this thing. I just built you a complete MVP scaffold (backend FastAPI + frontend Next.js + Postgres) with seed micro-questions and a basic policy generator, all wired up in Docker Compose.
+
+Download the starter project (zip)
+
+What you’ll get
+docker-compose.yml with three services: db (Postgres 16), backend (FastAPI), frontend (Next.js).
+
+Backend:
+
+/api/health (sanity check)
+
+/api/tenants/bootstrap (creates a sample org/user/client)
+
+/api/questions (serves the seed micro-assessments)
+
+/api/policies/generate (renders Jinja policy templates: InfoSec, Access Control, IR)
+
+Seed file at backend/seed/questions.json + loader script.
+
+Simple RBAC placeholder & org/client schema (ready to expand to real JWT + RLS).
+
+Frontend:
+
+Minimal dashboard + “TikTok-style” micro-assessment card page at /assess.
+
+Docs & scripts:
+
+README.md with quick start
+
+.env.example
+
+Makefile targets for up/down/logs
+
+How to run locally
+Unzip into a new GitHub repo folder.
+
+Copy env:
+
+cp .env.example .env
+Start:
+
+docker compose up --build
+Open:
+
+Frontend: http://localhost:3000
+
+Backend docs: http://localhost:8000/docs
+
+(First run will auto-create tables. Hit /api/tenants/bootstrap once—front-end does this too.)
+
+Next best steps (I can ship these next)
+Auth & RBAC: add JWT auth (password or SSO), role claims, and per-org scoping; then enable Postgres RLS policies on clients, questions, answers, etc.
+
+Assessment model: add assessments, answers, a scoring function (maturity 0–4 × weight; risk = likelihood × impact), and a “prioritized backlog” endpoint.
+
+Evidence uploads: add file upload endpoint + S3/MinIO storage + signed URLs.
+
+Report gen: PDF/DOCX export (exec summary, heatmap, top gaps, roadmap).
+
+Policy library: expand templates, add variables & versioning with diffs.
+
+Question bank: grow from the 5 seeds to ~80 micro-items mapped to ISO 27001 themes & SOC 2 Security.
+
+If you want, push this repo to GitHub and give me the link—then I’ll add JWT auth + RLS and flesh out the assessment/answers API in the next pass.
+
+
+
+You said:
+i build this and have it running, it is running over wsl with docker desktop, anything special i need in order to access it?  i cant seem to open the site via browser on my windows host
+ChatGPT said:
+
+Thought for 50s
+Nice—WSL + Docker Desktop is perfect for this. When ports are published, you should be able to hit it from Windows at:
+
+Frontend → http://localhost:3000
+
+Backend → http://localhost:8000/docs and http://localhost:8000/api/health
+
+If the browser can’t reach it, the most common cause is the Next.js dev server binding to 127.0.0.1 inside the container. Make it listen on all interfaces.
+
+Quick fix (frontend)
+Pick one of these:
+
+Option A (package.json)
+
+// frontend/package.json
+{
+  "scripts": {
+    "dev": "next dev -H 0.0.0.0 -p 3000",
+    "build": "next build",
+    "start": "next start -H 0.0.0.0 -p 3000"
+  }
+}
+Option B (Dockerfile)
+
+# frontend/Dockerfile
+# ...
+ENV HOST=0.0.0.0
+CMD ["npm", "run", "dev", "--", "-H", "0.0.0.0", "-p", "3000"]
+Then rebuild & run:
+
+docker compose down
+docker compose up --build
+Sanity checks
+Containers & ports
+
+docker compose ps
+docker ps --format "table {{.Names}}\t{{.Ports}}"
+You should see 0.0.0.0:3000->3000/tcp and 0.0.0.0:8000->8000/tcp.
+
+Backend reachable?
+
+curl http://localhost:8000/api/health
+Expected: {"status":"ok"}. If this works but the frontend doesn’t, it’s almost certainly the Next host binding fixed above.
+
+Logs
+
+docker compose logs -f frontend
+docker compose logs -f backend
+Next should print something like ready on http://0.0.0.0:3000.
+
+Port conflicts (Windows host)
+
+netstat -ano | findstr :3000
+netstat -ano | findstr :8000
+If another app is using the port, stop it or change the host ports in docker-compose.yml (e.g., "3080:3000").
+
+Try 127.0.0.1 explicitly
+Sometimes name resolution quirks crop up:
+
+http://127.0.0.1:3000
+
+http://127.0.0.1:8000
+
+VPN/security tools
+Corporate VPNs/filters can interfere with loopback. Temporarily disconnect or add an allow rule and re-test.
+
+If you still can’t reach it after binding to 0.0.0.0, paste the output of:
+
+docker compose ps
+docker compose logs frontend
+docker compose logs backend
+and I’ll pinpoint the next step fast.
+
+You said:
+undone@alieN:~/apps/assessor$ curl http://localhost:8000/api/health
+{"status":"ok"}undone@alieN:~/docker compose logs -f frontendogs -f frontend
+docker compose logs -f backend
+WARN[0000] /home/undone/apps/assessor/docker-compose.yml: the attribute version is obsolete, it will be ignored, please remove it to avoid potential confusion 
+frontend-1  | 
+frontend-1  | > pss-assessor-frontend@0.1.0 dev
+frontend-1  | > next dev
+frontend-1  |
+frontend-1  | sh: next: not found
+WARN[0000] /home/undone/apps/assessor/docker-compose.yml: the attribute version is obsolete, it will be ignored, please remove it to avoid potential confusion 
+backend-1  | INFO:     Started server process [1]
+backend-1  | INFO:     Waiting for application startup.
+backend-1  | INFO:     Application startup complete.
+backend-1  | INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+backend-1  | INFO:     172.18.0.1:44142 - "GET /api/health HTTP/1.1" 200 OK
+ChatGPT said:
+
+Thought for 27s
+Great clues—your backend is healthy and the frontend error tells us exactly what’s wrong:
+
+frontend-1 | sh: next: not found
+That happens because the bind mount ./frontend:/usr/src/app hides the node_modules that were installed during the image build. So inside the running container there’s no next binary to run.
+
+Fix it (pick one)
+Option A — Keep the bind mount and add a node_modules volume (recommended)
+Update your docker-compose.yml frontend service:
+
+# Remove the top-level "version: ..." line (it's obsolete)
+
+services:
+  # ...
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    env_file: .env
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/usr/src/app
+      - /usr/src/app/node_modules   # <-- preserve container's node_modules
+    command: ["npm","run","dev","--","-H","0.0.0.0","-p","3000"]  # bind to all interfaces
+Then rebuild fresh:
+
+docker compose down -v
+docker compose up --build
+You should now see in logs:
+
+ready - started server on 0.0.0.0:3000
+Option B — Don’t mount the frontend folder (quickest test)
+Comment out the volumes: for the frontend service so the image’s node_modules is used as-is:
+
+  frontend:
+    # ...
+    # volumes:
+    #   - ./frontend:/usr/src/app
+Rebuild/up again:
+
+docker compose down -v
+docker compose up --build
+Option C — Install dependencies on the host
+Keep your current bind mount, but run npm install on the host so ./frontend/node_modules exists and gets mounted into the container:
+
+cd frontend
+npm install
+cd ..
+docker compose up --build
+Also make sure Next.js binds to all interfaces
+If you didn’t add the command in compose, you can set it in frontend/package.json:
+
+{
+  "scripts": {
+    "dev": "next dev -H 0.0.0.0 -p 3000",
+    "build": "next build",
+    "start": "next start -H 0.0.0.0 -p 3000"
+  }
+}
+Quick checks
+# See port mappings (should show 0.0.0.0:3000->3000)
+docker ps --format "table {{.Names}}\t{{.Ports}}"
+
+# Frontend logs should show "ready on 0.0.0.0:3000"
+docker compose logs -f frontend
+
+# Backend still healthy?
+curl http://localhost:8000/api/health
+After this, you should be able to open http://localhost:3000 in your Windows browser (WSL2 + Docker Desktop exposes it to the host automatically).
+
+If it still complains, paste the docker compose ps and docker compose logs frontend output and I’ll zero in on it.
+
+You said:
+1 of 1 error
+Next.js (14.2.5) is outdated (learn more)
+
+Unhandled Runtime Error
+AxiosError: Network Error
+
+Call Stack
+XMLHttpRequest.handleError
+webpack-internal:/node_modules/axios/lib/adapters/xhr.js (110:1)
+Axios.request
+webpack-internal:/node_modules/axios/lib/core/Axios.js (45:1)
+ChatGPT said:
+
+Thought for 1m 5s
+Good news: the error tells us where to look. The frontend is up, but the browser can’t reach the API, hence:
+
+AxiosError: Network Error
+
+Top 3 culprits (and fixes):
+
+Using backend:8000 in the browser
+The service name backend only resolves inside Docker. If NEXT_PUBLIC_API_BASE is http://backend:8000, the browser will 404/Network Error.
+Fix: set it to http://localhost:8000 (or use the proxy below and remove it entirely).
+
+No proxy (CORS/cross-origin headaches)
+Best dev experience: proxy API calls through Next so the browser hits the same origin.
+Do this (recommended):
+
+Create frontend/next.config.js:
+
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  async rewrites() {
+    return [
+      { source: '/api/:path*', destination: 'http://backend:8000/api/:path*' },
+    ];
+  },
+};
+module.exports = nextConfig;
+In your frontend code, call relative paths:
+
+// frontend/pages/assess.tsx
+// Replace:
+// const API = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000';
+// axios.get(`${API}/api/questions`)
+// With:
+axios.get(`/api/questions`);
+This keeps requests same-origin (http://localhost:3000 → /api/...), and Next proxies to the backend container. No CORS issues, no localhost confusion.
+
+Frontend not binding to all interfaces
+Make sure Next listens on 0.0.0.0:
+
+// frontend/package.json
+{
+  "scripts": {
+    "dev": "next dev -H 0.0.0.0 -p 3000",
+    "build": "next build",
+    "start": "next start -H 0.0.0.0 -p 3000"
+  }
+}
+Also fix the earlier next: not found issue permanently:
+
+Keep the bind mount and preserve container node_modules:
+
+# docker-compose.yml (frontend service)
+frontend:
+  # ...
+  ports:
+    - "3000:3000"
+  volumes:
+    - ./frontend:/usr/src/app
+    - /usr/src/app/node_modules
+  command: ["npm","run","dev","--","-H","0.0.0.0","-p","3000"]
+Then rebuild clean:
+
+docker compose down -v
+docker compose up --build
+Quick validations
+From Windows browser: open http://localhost:8000/api/health (should show {"status":"ok"}).
+
+From browser devtools → Network on /assess: you should see a request to http://localhost:3000/api/questions (if using rewrites) with a 200.
+
+Check ports:
+
+docker ps --format "table {{.Names}}\t{{.Ports}}"
+Expect 0.0.0.0:3000->3000/tcp and 0.0.0.0:8000->8000/tcp.
+
+Frontend logs should say: ready - started server on 0.0.0.0:3000.
+
+(Optional) CORS hardening if you skip rewrites
+If you insist on calling http://localhost:8000 from the browser, allow both localhost variants:
+
+# backend/app/main.py
+from .config import settings
+origins = [o.strip() for o in settings.BACKEND_CORS_ORIGINS.split(",")]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+# .env
+BACKEND_CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+Do the proxy rewrite and you’ll be golden. If you hit another snag, paste the frontend logs after the rebuild and the Network tab URL it’s hitting—I’ll zero in fast.
+
+You said:
+is this right for assess.tsx?
+
+import axios from 'axios';
+import { useEffect, useState } from 'react';
+
+axios.get(/api/questions);
+
+type Question = {
+  id: number;
+  qid: string;
+  text: string;
+  help?: string;
+  answers: string[];
+  weight: number;
+  iso_refs: string[];
+  soc2_refs: string[];
+  evidence_required: boolean;
+}
+
+export default function Assess() {
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [idx, setIdx] = useState(0);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    axios.get(${API}/api/questions).then(res => setQuestions(res.data));
+    axios.post(${API}/api/tenants/bootstrap).catch(()=>{});
+  }, []);
+
+  const q = questions[idx];
+
+  const next = () => setIdx(i => Math.min(i + 1, questions.length - 1));
+  const prev = () => setIdx(i => Math.max(i - 1, 0));
+
+  return (
+    <main style={{ fontFamily: 'sans-serif', padding: 24, maxWidth: 720, margin: '0 auto' }}>
+      <h2>Assessment (Mock)</h2>
+      {q ? (
+        <div style={{ border: '1px solid #ddd', borderRadius: 12, padding: 16, marginTop: 16 }}>
+          <div style={{ marginBottom: 8, opacity: 0.7 }}>
+            {idx + 1} / {questions.length}
+          </div>
+          <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>{q.text}</div>
+          {q.help && <div style={{ fontSize: 14, marginBottom: 12 }}>{q.help}</div>}
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {q.answers.map(a => (
+              <button
+                key={a}
+                onClick={() => setAnswers({ ...answers, [q.qid]: a })}
+                style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid #ccc', background: answers[q.qid]===a ? '#eee' : 'white' }}
+              >
+                {a}
+              </button>
+            ))}
+          </div>
+          <div style={{ marginTop: 16, display: 'flex', justifyContent: 'space-between' }}>
+            <button onClick={prev} disabled={idx===0}>Back</button>
+            <button onClick={next} disabled={idx===questions.length-1}>Next</button>
+          </div>
+        </div>
+      ) : (
+        <p>Loading questions…</p>
+      )}
+    </main>
+  );
+}
+ChatGPT said:
+
+Thought for 10s
+Close! Two issues:
+
+You’ve got a stray axios.get('/api/questions') at the top level (outside the component). That will run during server-side/compile time and can cause the “Network Error.”
+
+You’re still referencing API inside useEffect, but we want relative paths so Next can proxy (/api/...) via next.config.js.
+
+Here’s a cleaned-up pages/assess.tsx you can paste in:
+
+import axios from 'axios';
+import { useEffect, useState } from 'react';
+
+type Question = {
+  id: number;
+  qid: string;
+  text: string;
+  help?: string;
+  answers: string[];
+  weight: number;
+  iso_refs: string[];
+  soc2_refs: string[];
+  evidence_required: boolean;
+};
+
+export default function Assess() {
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [idx, setIdx] = useState(0);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    // Bootstrap demo data (ignore if it already exists)
+    axios.post('/api/tenants/bootstrap').catch(() => {});
+
+    // Load micro-questions via Next proxy (no CORS/localhost confusion)
+    axios.get<Question[]>('/api/questions')
+      .then(res => setQuestions(res.data))
+      .catch(err => console.error('Failed to load questions', err));
+  }, []);
+
+  const q = questions[idx];
+
+  const next = () => setIdx(i => Math.min(i + 1, questions.length - 1));
+  const prev = () => setIdx(i => Math.max(i - 1, 0));
+
+  return (
+    <main style={{ fontFamily: 'sans-serif', padding: 24, maxWidth: 720, margin: '0 auto' }}>
+      <h2>Assessment (Mock)</h2>
+      {q ? (
+        <div style={{ border: '1px solid #ddd', borderRadius: 12, padding: 16, marginTop: 16 }}>
+          <div style={{ marginBottom: 8, opacity: 0.7 }}>
+            {idx + 1} / {questions.length}
+          </div>
+          <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>{q.text}</div>
+          {q.help && <div style={{ fontSize: 14, marginBottom: 12 }}>{q.help}</div>}
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {q.answers.map(a => (
+              <button
+                key={a}
+                onClick={() => setAnswers({ ...answers, [q.qid]: a })}
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: 8,
+                  border: '1px solid #ccc',
+                  background: answers[q.qid] === a ? '#eee' : 'white'
+                }}
+              >
+                {a}
+              </button>
+            ))}
+          </div>
+          <div style={{ marginTop: 16, display: 'flex', justifyContent: 'space-between' }}>
+            <button onClick={prev} disabled={idx === 0}>Back</button>
+            <button onClick={next} disabled={idx === questions.length - 1}>Next</button>
+          </div>
+        </div>
+      ) : (
+        <p>Loading questions…</p>
+      )}
+    </main>
+  );
+}
+And make sure you have the proxy in frontend/next.config.js:
+
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  async rewrites() {
+    return [
+      { source: '/api/:path*', destination: 'http://backend:8000/api/:path*' },
+    ];
+  },
+};
+module.exports = nextConfig;
+After saving, restart the frontend container (or docker compose up --build if you changed compose).
+That “Next.js is outdated” banner is just a dev warning—not related to the network error.
+
+You said:
+ > [frontend 4/5] RUN npm install:
+0.697 npm error code EJSONPARSE
+0.697 npm error path /usr/src/app/package.json
+0.697 npm error JSON.parse Unexpected non-whitespace character after JSON at position 442 while parsing near "...om\": \"18.3.0\"\n  }\n}\n{\n  \"scripts\": {\n   ..."
+0.697 npm error JSON.parse Failed to parse JSON data.
+0.697 npm error JSON.parse Note: package.json must be actual JSON, not just JavaScript.
+0.699 npm error A complete log of this run can be found in: /root/.npm/_logs/2025-08-22T21_34_49_384Z-debug-0.log
+------
+Dockerfile:7
+
+--------------------
+
+   5 |
+
+   6 |     COPY package.json package-lock.json* ./
+
+   7 | >>> RUN npm install
+
+   8 |
+
+   9 |     COPY . .
+
+--------------------
+
+target frontend: failed to solve: process "/bin/sh -c npm install" did not complete successfully: exit code: 1
+ChatGPT said:
+
+Thought for 21s
+That error means your frontend/package.json isn’t valid JSON—looks like two JSON objects got concatenated (you can see }{ "scripts": ... in the error). Fix it by replacing the file with a clean, single JSON object:
+
+1) Replace frontend/package.json (copy–paste this exact content)
+{
+  "name": "pss-assessor-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -H 0.0.0.0 -p 3000",
+    "build": "next build",
+    "start": "next start -H 0.0.0.0 -p 3000"
+  },
+  "dependencies": {
+    "next": "14.2.5",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "axios": "1.7.7"
+  },
+  "devDependencies": {
+    "typescript": "5.5.4",
+    "@types/node": "20.14.11",
+    "@types/react": "18.3.3",
+    "@types/react-dom": "18.3.0"
+  }
+}
+2) Add a Next rewrite so the browser can call the API without CORS
+Create frontend/next.config.js:
+
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  async rewrites() {
+    return [
+      { source: '/api/:path*', destination: 'http://backend:8000/api/:path*' },
+    ];
+  },
+};
+module.exports = nextConfig;
+In your React code, call relative paths (e.g., axios.get('/api/questions')).
+
+3) Prevent “next: not found” when bind-mounting
+If you’re mounting ./frontend into the container (dev-friendly), also mount an anonymous volume for node_modules so the container’s install isn’t stomped:
+
+# docker-compose.yml (frontend service)
+frontend:
+  build:
+    context: ./frontend
+    dockerfile: Dockerfile
+  env_file: .env
+  depends_on:
+    - backend
+  ports:
+    - "3000:3000"
+  volumes:
+    - ./frontend:/usr/src/app
+    - /usr/src/app/node_modules
+  command: ["npm","run","dev","--","-H","0.0.0.0","-p","3000"]
+(Also fine to remove the top-level version: key in compose; it’s obsolete.)
+
+4) Rebuild clean
+docker compose down -v
+docker compose up --build
+You should now see in logs:
+
+frontend: ready - started server on 0.0.0.0:3000
+
+backend still serving at 0.0.0.0:8000
+
+5) Quick sanity checks
+# Host → API
+curl http://localhost:8000/api/health    # {"status":"ok"}
+
+# See port maps
+docker ps --format "table {{.Names}}\t{{.Ports}}"
+
+# Frontend logs
+docker compose logs -f frontend
+If anything still fails, paste:
+
+docker compose ps
+
+docker compose logs frontend (first ~50 lines)
+
+The Network tab request URL/path from your browser
+
+…and I’ll pinpoint the next tweak.
+
+You said:
+PSS Assessor MVP
+Backend health: error
+
+Go to assessment mock →
+
+undone@alieN:~/apps/assessor$ docker compose logs backend
+backend-1  | INFO:     Started server process [1]
+backend-1  | INFO:     Waiting for application startup.
+backend-1  | INFO:     Application startup complete.
+backend-1  | INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+backend-1  | INFO:     172.18.0.1:49938 - "GET /api/health HTTP/1.1" 200 OK
+backend-1  | INFO:     172.18.0.4:50758 - "GET /api/questions HTTP/1.1" 200 OK
+backend-1  | INFO:     172.18.0.4:50756 - "POST /api/tenants/bootstrap HTTP/1.1" 200 OK
+backend-1  | INFO:     172.18.0.1:56338 - "GET /api/health HTTP/1.1" 200 OK
+undone@alieN:~/apps/assessor$ 
+ChatGPT said:
+
+Thought for 25s
+You’re super close—the frontend is up and talking to the backend for /api/questions (I can see the 200s in your backend logs), but your home page still shows “Backend health: error” because index.tsx is still calling the API via an absolute URL/env var. Let’s make the home page use the same proxy pattern you used for /assess.
+
+Do this
+Make index.tsx use a relative path (so Next proxies to the backend):
+
+// frontend/pages/index.tsx
+import axios from 'axios';
+import { useEffect, useState } from 'react';
+
+export default function Home() {
+  const [health, setHealth] = useState<{status?: string} | null>(null);
+
+  useEffect(() => {
+    axios.get('/api/health')               // <— relative path (uses Next rewrite)
+      .then(res => setHealth(res.data))
+      .catch(() => setHealth({ status: 'error' }));
+  }, []);
+
+  return (
+    <main style={{ fontFamily: 'sans-serif', padding: 24 }}>
+      <h1>PSS Assessor MVP</h1>
+      <p>Backend health: <strong>{health ? health.status : '...'}</strong></p>
+      <p><a href="/assess">Go to assessment mock →</a></p>
+    </main>
+  );
+}
+Ensure the proxy rewrite exists (already suggested, but double-check):
+
+// frontend/next.config.js
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  async rewrites() {
+    return [
+      { source: '/api/:path*', destination: 'http://backend:8000/api/:path*' },
+    ];
+  },
+};
+module.exports = nextConfig;
+Restart the frontend cleanly (so Next picks up config changes):
+
+docker compose down
+docker compose up --build
+Quick sanity checks
+
+In your browser, open: http://localhost:3000/api/health
+You should see the JSON from the backend (proxied by Next).
+
+Reload http://localhost:3000/ — it should now show Backend health: ok.
+
+Why this fixes it
+Your /assess page hits /api/questions (relative) → Next proxies to backend:8000 (works).
+
+The home page was likely using NEXT_PUBLIC_API_BASE or a hardcoded http://localhost:8000, which can be finicky and cause a one-off failure that leaves the UI showing “error.” Using the same relative path + rewrite removes CORS and localhost edge cases.
+
+If you still see “error” after this, check your browser’s Network tab on / and tell me the exact request URL it tried for the health call—then we’ll zero in on the remaining snag.
+
+You said:
+Uploaded image
+now it is hanging here:
+ChatGPT said:
+
+Thought for 22s
+This “stuck on Loading questions…” usually means the DB has zero questions. You likely ran docker compose down -v earlier (which nukes the Postgres volume), so the seed data is gone.
+
+Fix in 30 seconds
+Seed the questions back into Postgres
+
+docker compose exec backend python /app/seed/seed_questions.py
+Expected output: Seeded questions.
+
+Verify the API returns them
+
+curl http://localhost:8000/api/questions | head
+You should see an array with objects (not []).
+
+Reload the page
+Go back to http://localhost:3000/assess and refresh. You should see Q1.
+
+Quick checks if it still hangs
+Hit the proxied route in your browser:
+http://localhost:3000/api/questions
+
+If you get [] → seeder didn’t run (or a different DB). Re-run the seeder.
+
+If you get a list of items → frontend should render; try a hard refresh.
+
+Frontend logs:
+
+docker compose logs -f frontend
+Nice-to-have (so this doesn’t happen again)
+Avoid down -v unless you want to wipe the DB.
+
+Add an auto-seed on first boot (optional). For MVP, you can add this to backend/app/main.py after create_all:
+
+# Auto-seed minimal questions if table is empty (dev convenience)
+from sqlalchemy import select
+from .models import Question
+import json, os
+
+with SessionLocal() as db:
+    cnt = db.execute(select(Question)).first()
+    if not cnt:
+        import pathlib
+        path = pathlib.Path(__file__).resolve().parents[1] / "seed" / "questions.json"
+        data = json.loads(path.read_text())
+        for item in data:
+            q = Question(
+                qid=item["qid"],
+                text=item["text"],
+                help=item.get("help"),
+                answers=json.dumps(item.get("answers", [])),
+                weight=item.get("weight", 1),
+                iso_refs=json.dumps(item.get("iso_refs", [])),
+                soc2_refs=json.dumps(item.get("soc2_refs", [])),
+                evidence_required=bool(item.get("evidence_required", False)),
+            )
+            db.add(q)
+        db.commit()
+UX tweak so it’s clear when the list is empty (instead of saying “Loading” forever). In assess.tsx, you can do:
+
+{questions.length === 0 ? (
+  <p>No questions found. (Run the seeder.)</p>
+) : (
+  /* render the card */
+)}
+Run the seeder and refresh—you should be good.
+
+You said:
+undone@alieN:~/apps/assessor$ docker compose exec backend python /app/seed/seed_questions.py
+Traceback (most recent call last):
+  File "/app/seed/seed_questions.py", line 3, in <module>
+    from app.db import SessionLocal, engine
+ModuleNotFoundError: No module named 'app'
+undone@alieN:~/apps/assessor$ 
+ChatGPT said:
+
+Thought for 40s
+Yep—easy fix. The error happens because you ran the seed script by file path, which sets sys.path to /app/seed (so import app isn’t found). Run it as a module from /app.
+
+Seed the questions (works reliably)
+# run inside the backend container as a module
+docker compose exec -w /app backend python -m seed.seed_questions
+You should see: Seeded questions.
+
+Verify data is there
+# from your host
+curl http://localhost:8000/api/questions | head
+If you see JSON objects (not []), reload http://localhost:3000/assess and the cards should appear.
+
+If you still get “ModuleNotFoundError: app”
+Add empty __init__.py files so Python treats these as normal packages (not strictly required with -m, but makes imports robust):
+
+# from your project root
+touch backend/app/__init__.py
+touch backend/seed/__init__.py
+Then re-run:
+
+docker compose exec -w /app backend python -m seed.seed_questions
+Tip for the future
+Avoid docker compose down -v unless you want to wipe the DB; it deletes the Postgres volume, so you’ll need to re-seed afterward.
+
+If anything’s still off, tell me:
+
+curl http://localhost:8000/api/questions | head output
+
+docker compose logs -f backend | tail -n 50
+…and I’ll zero in fast.
+
+You said:
+yep... that worked after i seeded the DB.
+
+ok,, lets do your other suggestions now from earlier:
+
+Next best steps (I can ship these next)
+
+Auth & RBAC: add JWT auth (password or SSO), role claims, and per-org scoping; then enable Postgres RLS policies on clients, questions, answers, etc.
+
+Assessment model: add assessments, answers, a scoring function (maturity 0–4 × weight; risk = likelihood × impact), and a “prioritized backlog” endpoint.
+
+Evidence uploads: add file upload endpoint + S3/MinIO storage + signed URLs.
+
+Report gen: PDF/DOCX export (exec summary, heatmap, top gaps, roadmap).
+
+Policy library: expand templates, add variables & versioning with diffs.
+
+Question bank: grow from the 5 seeds to ~80 micro-items mapped to ISO 27001 themes & SOC 2 Security
+ChatGPT said:
+
+Thought for 45s
+Amazing—glad the seeding fixed it. I went ahead and built you a drop-in add-on pack that implements the next chunk you asked for:
+
+JWT auth + RBAC (roles in token)
+
+Assessments + answers, weighted scoring, prioritized backlog
+
+Evidence uploads (local) with signed download links
+
+Report generation (DOCX)
+
+Postgres RLS scaffold (session GUC pattern)
+
+Expanded micro-question bank (~40 items)
+
+Download the add-on pack
+
+How to install (quick)
+stop:
+
+docker compose down
+unzip the pack and copy files into your repo, preserving paths:
+
+backend/requirements.txt
+backend/app/models.py
+backend/app/schemas.py
+backend/app/deps.py
+backend/app/routers/auth.py
+backend/app/routers/assessments.py
+backend/app/routers/evidence.py
+backend/app/routers/reports.py
+backend/app/main.py
+backend/db_sql/rls.sql
+backend/seed/questions.json   # expanded bank
+rebuild + start:
+
+docker compose build backend
+docker compose up
+if the DB volume was reset, reseed:
+
+docker compose exec -w /app backend python -m seed.seed_questions
+Use the new features
+Register + Login (get a JWT)
+# Register (creates org if needed)
+curl -X POST http://localhost:8000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"owner@pss.local","name":"PSS Owner","password":"ChangeMe!","role":"pss_owner"}'
+
+# Login
+curl -X POST http://localhost:8000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"owner@pss.local","password":"ChangeMe!"}'
+Copy access_token from the response. Use it in the Authorization: Bearer ... header below.
+
+Create an assessment + answer it
+# Create assessment for client 1
+curl -X POST http://localhost:8000/api/assessments \
+  -H "Authorization: Bearer TOKEN" -H "Content-Type: application/json" \
+  -d '{"client_id":1,"framework":"iso27001_2022"}'
+
+# Submit sample answers (edit IDs/maturity)
+curl -X POST http://localhost:8000/api/assessments/1/answers \
+  -H "Authorization: Bearer TOKEN" -H "Content-Type: application/json" \
+  -d '[{"question_id":1,"maturity":2,"risk_impact":3,"risk_likelihood":3},{"question_id":2,"maturity":1}]'
+
+# Get summary and backlog
+curl http://localhost:8000/api/assessments/1/summary -H "Authorization: Bearer TOKEN"
+curl http://localhost:8000/api/assessments/1/backlog -H "Authorization: Bearer TOKEN"
+Evidence upload + signed download
+curl -X POST http://localhost:8000/api/evidence/upload \
+  -H "Authorization: Bearer TOKEN" \
+  -F client_id=1 -F file=@/path/to/screenshot.png
+
+# response gives "download_token" (valid 1 hour)
+curl "http://localhost:8000/api/evidence/download?token=THE_TOKEN" \
+  -H "Authorization: Bearer TOKEN"
+Generate a DOCX report
+curl -X POST "http://localhost:8000/api/reports/generate?client_id=1&assessment_id=1" \
+  -H "Authorization: Bearer TOKEN"
+It returns a file path inside the container (/app/generated/...docx). We can add a download endpoint next, or mount /app/generated as a volume to grab files from the host.
+
+Notes / what’s next
+Frontend can keep using relative /api/... paths. For new endpoints, add the Authorization header (Bearer token) in axios.
+
+RLS: policies are created; in the next pass we’ll wire per-request SET LOCAL app.current_org_id from the user’s org. For now, your app logic still enforces org scoping.
+
+Policy library/versioning and PDF export are next on the list (along with S3/MinIO for evidence and a proper download route).
+
+If you hit any hiccups applying the pack, tell me the error + the first ~30 lines of docker compose logs backend and I’ll fix it up fast.
+
+
+
+You said:
+can we have all of this functionality in the GUI?
+ChatGPT said:
+
+Thought for 29s
+Absolutely. Let’s light up a simple but complete GUI that covers login, assessments (answer + score + backlog), evidence upload, and report download—all from the browser.
+
+Below are small, focused additions to your Next.js app. You can paste these files in and run.
+
+1) Axios helper (adds the JWT to every request)
+frontend/lib/api.ts
+
+import axios from "axios";
+
+const api = axios.create({ baseURL: "" }); // use Next rewrite, so keep baseURL empty
+
+// Add Authorization header if we have a token
+api.interceptors.request.use((cfg) => {
+  if (typeof window !== "undefined") {
+    const t = window.localStorage.getItem("token");
+    if (t) cfg.headers = { ...(cfg.headers || {}), Authorization: `Bearer ${t}` };
+  }
+  return cfg;
+});
+
+export default api;
+2) Auth context (login/register + token storage)
+frontend/context/AuthContext.tsx
+
+import React, { createContext, useContext, useEffect, useState } from "react";
+import api from "@/lib/api";
+
+type User = { id: number; email: string; name: string; role: string; organization_id: number } | null;
+
+type AuthCtx = {
+  user: User;
+  token: string | null;
+  login: (email: string, password: string) => Promise<void>;
+  register: (email: string, name: string, password: string) => Promise<void>;
+  logout: () => void;
+};
+
+const Ctx = createContext<AuthCtx | null>(null);
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [token, setToken] = useState<string | null>(null);
+  const [user, setUser] = useState<User>(null);
+
+  useEffect(() => {
+    const t = localStorage.getItem("token");
+    if (t) setToken(t);
+  }, []);
+
+  const login = async (email: string, password: string) => {
+    const { data } = await api.post("/api/auth/login", { email, password });
+    localStorage.setItem("token", data.access_token);
+    setToken(data.access_token);
+    // We don’t have a /me endpoint yet; quick hack: mark as logged-in
+    setUser({ id: 0, email, name: email.split("@")[0], role: "pss_owner", organization_id: 1 });
+  };
+
+  const register = async (email: string, name: string, password: string) => {
+    await api.post("/api/auth/register", { email, name, password, role: "pss_owner" });
+    await login(email, password);
+  };
+
+  const logout = () => {
+    localStorage.removeItem("token");
+    setToken(null);
+    setUser(null);
+  };
+
+  return <Ctx.Provider value={{ user, token, login, register, logout }}>{children}</Ctx.Provider>;
+}
+
+export function useAuth() {
+  const c = useContext(Ctx);
+  if (!c) throw new Error("useAuth must be used within AuthProvider");
+  return c;
+}
+Wrap your app with the provider:
+
+frontend/pages/_app.tsx
+
+import type { AppProps } from "next/app";
+import { AuthProvider } from "@/context/AuthContext";
+
+export default function App({ Component, pageProps }: AppProps) {
+  return (
+    <AuthProvider>
+      <Component {...pageProps} />
+    </AuthProvider>
+  );
+}
+3) Login page
+frontend/pages/login.tsx
+
+import { useState } from "react";
+import { useRouter } from "next/router";
+import { useAuth } from "@/context/AuthContext";
+
+export default function Login() {
+  const { login, register } = useAuth();
+  const [email, setEmail] = useState("owner@pss.local");
+  const [name, setName] = useState("PSS Owner");
+  const [password, setPassword] = useState("ChangeMe!");
+  const [mode, setMode] = useState<"login"|"register">("login");
+  const [err, setErr] = useState<string | null>(null);
+  const router = useRouter();
+
+  const go = async () => {
+    try {
+      setErr(null);
+      if (mode === "login") await login(email, password);
+      else await register(email, name, password);
+      router.push("/portal");
+    } catch (e: any) {
+      setErr(e?.response?.data?.detail || "Auth failed");
+    }
+  };
+
+  return (
+    <main style={{ fontFamily: "sans-serif", padding: 24, maxWidth: 420, margin: "40px auto" }}>
+      <h2>{mode === "login" ? "Login" : "Register"}</h2>
+      {mode === "register" && (
+        <div>
+          <label>Name</label><br />
+          <input value={name} onChange={e=>setName(e.target.value)} style={{width:"100%"}} />
+        </div>
+      )}
+      <div style={{marginTop:12}}>
+        <label>Email</label><br />
+        <input value={email} onChange={e=>setEmail(e.target.value)} style={{width:"100%"}} />
+      </div>
+      <div style={{marginTop:12}}>
+        <label>Password</label><br />
+        <input type="password" value={password} onChange={e=>setPassword(e.target.value)} style={{width:"100%"}} />
+      </div>
+      {err && <p style={{color:"crimson"}}>{err}</p>}
+      <div style={{marginTop:16, display:"flex", gap:8}}>
+        <button onClick={go}>{mode === "login" ? "Login" : "Register"}</button>
+        <button onClick={()=>setMode(mode==="login"?"register":"login")} type="button">
+          {mode === "login" ? "Switch to Register" : "Switch to Login"}
+        </button>
+      </div>
+    </main>
+  );
+}
+4) All-in-one “Portal” page (Assessments, Evidence, Reports)
+frontend/pages/portal.tsx
+
+import { useEffect, useMemo, useState } from "react";
+import api from "@/lib/api";
+import { useAuth } from "@/context/AuthContext";
+
+type Question = { id:number; qid:string; text:string; answers:string[]; weight:number; evidence_required:boolean };
+type Summary = { assessment_id:number; avg_maturity:number; top_gaps:string[] };
+
+export default function Portal() {
+  const { user, token, logout } = useAuth();
+  const [clientId, setClientId] = useState(1);
+  const [framework, setFramework] = useState("iso27001_2022");
+  const [assessmentId, setAssessmentId] = useState<number | null>(null);
+
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [answers, setAnswers] = useState<Record<number, number>>({});
+  const [summary, setSummary] = useState<Summary | null>(null);
+  const [backlog, setBacklog] = useState<{qid:string; priority_score:number}[]>([]);
+  const [uploadMsg, setUploadMsg] = useState<string | null>(null);
+  const [reportLink, setReportLink] = useState<string | null>(null);
+  const authed = Boolean(token);
+
+  useEffect(() => { api.post(`/api/tenants/bootstrap`).catch(()=>{}); }, []);
+  useEffect(() => { api.get(`/api/questions`).then(r => setQuestions(r.data)); }, []);
+
+  const startAssessment = async () => {
+    const { data } = await api.post(`/api/assessments`, { client_id: clientId, framework });
+    setAssessmentId(data.assessment_id);
+    setSummary(null); setBacklog([]);
+  };
+
+  const submitAnswers = async () => {
+    if (!assessmentId) return;
+    const payload = Object.entries(answers).map(([qid, maturity]) => ({
+      question_id: Number(qid),
+      maturity: Number(maturity),
+      risk_impact: 3, risk_likelihood: 3
+    }));
+    await api.post(`/api/assessments/${assessmentId}/answers`, payload);
+  };
+
+  const refreshSummary = async () => {
+    if (!assessmentId) return;
+    const s = await api.get(`/api/assessments/${assessmentId}/summary`);
+    setSummary(s.data);
+    const bl = await api.get(`/api/assessments/${assessmentId}/backlog`);
+    setBacklog(bl.data.items);
+  };
+
+  const uploadEvidence = async (file: File) => {
+    const form = new FormData();
+    form.append("client_id", String(clientId));
+    form.append("file", file);
+    const { data } = await api.post(`/api/evidence/upload`, form);
+    setUploadMsg(`Uploaded evidence id=${data.evidence_id}`);
+  };
+
+  const generateReport = async () => {
+    if (!assessmentId) return;
+    const { data } = await api.post(`/api/reports/generate?client_id=${clientId}&assessment_id=${assessmentId}`);
+    // Add a lightweight download route (see backend patch below)
+    setReportLink(`/api/reports/download_file?path=${encodeURIComponent(data.file_path)}`);
+  };
+
+  if (!authed) {
+    return (
+      <main style={{ fontFamily:"sans-serif", padding:24 }}>
+        <p>You’re not logged in. <a href="/login">Go to login →</a></p>
+      </main>
+    );
+  }
+
+  return (
+    <main style={{ fontFamily:"sans-serif", padding:24, maxWidth:1000, margin:"0 auto" }}>
+      <header style={{display:"flex", justifyContent:"space-between", alignItems:"center"}}>
+        <h2>PSS Assessor Portal</h2>
+        <div>
+          <span style={{marginRight:12}}>{user?.email}</span>
+          <button onClick={logout}>Logout</button>
+        </div>
+      </header>
+
+      <section style={{marginTop:24, padding:16, border:"1px solid #ddd", borderRadius:12}}>
+        <h3>1) New Assessment</h3>
+        <div style={{display:"flex", gap:12, alignItems:"center"}}>
+          <label>Client ID:</label>
+          <input type="number" value={clientId} onChange={e=>setClientId(Number(e.target.value))} />
+          <label>Framework:</label>
+          <select value={framework} onChange={e=>setFramework(e.target.value)}>
+            <option value="iso27001_2022">ISO 27001:2022</option>
+            <option value="soc2_security">SOC 2 Security</option>
+          </select>
+          <button onClick={startAssessment}>Create</button>
+          {assessmentId && <span>Current assessment: #{assessmentId}</span>}
+        </div>
+      </section>
+
+      <section style={{marginTop:24, padding:16, border:"1px solid #ddd", borderRadius:12}}>
+        <h3>2) Answer Questions</h3>
+        {!assessmentId && <p>Create an assessment first.</p>}
+        {assessmentId && (
+          <>
+            <div style={{display:"grid", gridTemplateColumns:"1fr 1fr", gap:12}}>
+              {questions.map(q => (
+                <div key={q.id} style={{border:"1px solid #eee", borderRadius:10, padding:12}}>
+                  <div style={{fontWeight:600, marginBottom:8}}>{q.text}</div>
+                  <div style={{display:"flex", gap:8, flexWrap:"wrap"}}>
+                    {[0,1,2,3,4].map(m => (
+                      <button
+                        key={m}
+                        onClick={()=>setAnswers({...answers, [q.id]: m})}
+                        style={{padding:"6px 10px", border:"1px solid #ccc", borderRadius:8, background: answers[q.id]===m ? "#eee" : "white"}}
+                      >
+                        {["No","Planned","Partially","Implemented","Optimized"][m]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{marginTop:12}}>
+              <button onClick={submitAnswers}>Save Answers</button>
+              <button onClick={refreshSummary} style={{marginLeft:8}}>Refresh Summary</button>
+            </div>
+          </>
+        )}
+      </section>
+
+      <section style={{marginTop:24, padding:16, border:"1px solid #ddd", borderRadius:12}}>
+        <h3>3) Summary & Backlog</h3>
+        {summary ? (
+          <>
+            <p><b>Avg maturity (weighted):</b> {summary.avg_maturity.toFixed(2)}</p>
+            <p><b>Top gaps:</b> {summary.top_gaps.join(", ") || "—"}</p>
+            <h4>Prioritized backlog</h4>
+            <table>
+              <thead><tr><th>Control/Question</th><th>Priority</th></tr></thead>
+              <tbody>
+                {backlog.map((i) => (
+                  <tr key={i.qid}><td>{i.qid}</td><td>{i.priority_score.toFixed(2)}</td></tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        ) : <p>No summary yet. Click “Refresh Summary”.</p>}
+      </section>
+
+      <section style={{marginTop:24, padding:16, border:"1px solid #ddd", borderRadius:12}}>
+        <h3>4) Evidence Upload</h3>
+        <input type="file" onChange={(e)=> e.target.files?.[0] && uploadEvidence(e.target.files[0])} />
+        {uploadMsg && <p>{uploadMsg}</p>}
+      </section>
+
+      <section style={{marginTop:24, padding:16, border:"1px solid #ddd", borderRadius:12}}>
+        <h3>5) Generate Report</h3>
+        <button onClick={generateReport} disabled={!assessmentId}>Generate DOCX</button>
+        {reportLink && (
+          <p>
+            Report ready: <a href={reportLink}>Download</a>
+          </p>
+        )}
+      </section>
+    </main>
+  );
+}
+Add a link on your home page to the portal (optional):
+
+// frontend/pages/index.tsx — add:
+// <p><a href="/portal">Open Portal →</a></p>
+5) Tiny backend patch for file download (reports)
+Add a real file download route so the portal’s download link works:
+
+backend/app/routers/reports.py (append at bottom)
+
+from fastapi.responses import FileResponse
+
+@router.get("/download_file")
+def download_file(path: str, user=Depends(require_role(["pss_owner","pss_analyst","client_admin","client_readonly","auditor_readonly"]))):
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="File not found")
+    return FileResponse(path, filename=os.path.basename(path))
+(Your evidence router already returns a token; we can add a similar FileResponse route later if you want one-click evidence downloads, too.)
+
+6) Make sure your Next.js proxy is present (so all /api/* calls work)
+frontend/next.config.js
+
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  async rewrites() {
+    return [
+      { source: '/api/:path*', destination: 'http://backend:8000/api/:path*' },
+    ];
+  },
+};
+module.exports = nextConfig;
+7) Rebuild & test
+docker compose down
+docker compose up --build
+# if DB was nuked:
+docker compose exec -w /app backend python -m seed.seed_questions
+Then:
+
+Go to http://localhost:3000/login → register or login
+
+Open http://localhost:3000/portal
+
+Create assessment → answer → save → refresh summary
+
+Upload evidence
+
+Generate report → click “Download”
+
+What this gives you now
+All core functionality usable in the GUI (auth, assessment, scoring/backlog, evidence, reports)
+
+Simple RBAC gating via the token (UI hides if not logged in; API enforces roles)
+
+Keeps using the proxy so there’s no CORS/localhost pain
+
+When you’re ready, we can make it prettier (Tailwind/UI kit), add a proper nav, real “Clients” pages, and wire per-request RLS SET LOCAL app.current_org_id on the backend for hard isolation.
+
+You said:
+Build Error
+Failed to compile
+
+Next.js (14.2.5) is outdated (learn more)
+./pages/_app.tsx:2:1
+Module not found: Can't resolve '@/context/AuthContext'
+  1 | import type { AppProps } from "next/app";
+> 2 | import { AuthProvider } from "@/context/AuthContext";
+    | ^
+  3 |
+  4 | export default function App({ Component, pageProps }: AppProps) {
+  5 |   return (
+
+https://nextjs.org/docs/messages/module-not-found
+ChatGPT said:
+
+Thought for 22s
+Yep—that error is because we used the @/... path alias but your tsconfig.json doesn’t define it yet.
+
+Fix (add a path alias)
+Edit frontend/tsconfig.json and add baseUrl + paths:
+
 {
   "compilerOptions": {
     "target": "es5",
-    "lib": [
-      "dom",
-      "dom.iterable",
-      "esnext"
-    ],
+    "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": false,
@@ -17,14 +1586,39 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "preserve",
-    "incremental": true
+
+    // 👇 add these two lines
+    "baseUrl": ".",
+    "paths": { "@/*": ["*"] }
   },
-  "include": [
-    "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx"
-  ],
-  "exclude": [
-    "node_modules"
-  ]
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
+  "exclude": ["node_modules"]
 }
+Make sure the files exist at these paths (matching case exactly):
+
+frontend/context/AuthContext.tsx
+
+frontend/lib/api.ts
+
+Then restart the frontend:
+
+docker compose down
+docker compose up --build
+Quick fallback (if you prefer no alias)
+Change the import in pages/_app.tsx to a relative path:
+
+import { AuthProvider } from "../context/AuthContext";
+…and in any files using @/lib/api, switch to:
+
+import api from "../lib/api";
+Once the alias (or the relative paths) are set, the build error will go away and the GUI pages should load:
+
+http://localhost:3000/login
+
+http://localhost:3000/portal
+
+
+
+
+No file chosenNo file chosen
+ChatGPT can make mistakes. OpenAI doesn't use Point Solutions Security workspace data to train its models.
