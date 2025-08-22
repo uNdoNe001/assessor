@@ -13,7 +13,7 @@ export default function Home() {
 
   return (
     <main style={{ fontFamily: 'sans-serif', padding: 24 }}>
-      <h1>PSS Assessor MVP</h1>
+      <h1>Assessor MVP</h1>
       <p>Backend health: <strong>{health ? health.status : '...'}</strong></p>
       <p><a href="/assess">Go to assessment mock →</a></p>
     </main>
