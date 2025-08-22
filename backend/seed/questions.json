@@ -1,0 +1,104 @@
+[
+  {
+    "qid": "Q-ISO-A5-Policy-01",
+    "text": "Do you have an approved, organization-wide information security policy?",
+    "help": "Upload latest approved version and approval date.",
+    "answers": [
+      "No",
+      "Planned",
+      "Partially",
+      "Implemented",
+      "Optimized"
+    ],
+    "weight": 3,
+    "iso_refs": [
+      "A.5.1"
+    ],
+    "soc2_refs": [
+      "CC1.1",
+      "CC2.1"
+    ],
+    "evidence_required": true
+  },
+  {
+    "qid": "Q-ISO-A5-Asset-Inventory",
+    "text": "Is there a maintained inventory of information assets with owners assigned?",
+    "help": "Attach asset inventory export or link to CMDB.",
+    "answers": [
+      "No",
+      "Planned",
+      "Partially",
+      "Implemented",
+      "Optimized"
+    ],
+    "weight": 3,
+    "iso_refs": [
+      "A.5.9"
+    ],
+    "soc2_refs": [
+      "CC3.2",
+      "CC4.1"
+    ],
+    "evidence_required": true
+  },
+  {
+    "qid": "Q-ISO-A8-MFA-RemoteAdmin",
+    "text": "Is MFA enforced for all remote administrative access?",
+    "help": "Screenshots of policy enforcement or IdP settings.",
+    "answers": [
+      "No",
+      "Planned",
+      "Partially",
+      "Implemented",
+      "Optimized"
+    ],
+    "weight": 4,
+    "iso_refs": [
+      "A.8.4"
+    ],
+    "soc2_refs": [
+      "CC6.1"
+    ],
+    "evidence_required": false
+  },
+  {
+    "qid": "Q-ISO-A8-IR-Testing",
+    "text": "Has the incident response plan been tested within the past 12 months?",
+    "help": "Upload test report or tabletop notes.",
+    "answers": [
+      "No",
+      "Planned",
+      "Partially",
+      "Implemented",
+      "Optimized"
+    ],
+    "weight": 4,
+    "iso_refs": [
+      "A.5.24"
+    ],
+    "soc2_refs": [
+      "CC7.4"
+    ],
+    "evidence_required": true
+  },
+  {
+    "qid": "Q-ISO-A8-Backup-Restore",
+    "text": "Are backups performed and restoration tests conducted regularly?",
+    "help": "Provide schedule and last successful restore evidence.",
+    "answers": [
+      "No",
+      "Planned",
+      "Partially",
+      "Implemented",
+      "Optimized"
+    ],
+    "weight": 3,
+    "iso_refs": [
+      "A.8.13"
+    ],
+    "soc2_refs": [
+      "A1.2"
+    ],
+    "evidence_required": true
+  }
+]
