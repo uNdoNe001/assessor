@@ -1,4 +1,4 @@
-# PSS Assessor MVP (Cynomi-like)
+# PSS Assessor MVP Test Product
 
 Multi-tenant, RBAC-enabled skeleton for micro-assessments (ISO 27001 + SOC 2), policy generation, and reporting.
 
