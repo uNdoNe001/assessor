@@ -1,13 +1,14 @@
+// frontend/pages/index.tsx
 import axios from 'axios';
 import { useEffect, useState } from 'react';
 
-const API = process.env.NEXT_PUBLIC_API_BASE || 'http://localhost:8000';
-
 export default function Home() {
-  const [health, setHealth] = useState<any>(null);
+  const [health, setHealth] = useState<{status?: string} | null>(null);
 
   useEffect(() => {
-    axios.get(`${API}/api/health`).then(res => setHealth(res.data)).catch(() => setHealth({ status: 'error' }));
+    axios.get('/api/health')               // <— relative path (uses Next rewrite)
+      .then(res => setHealth(res.data))
+      .catch(() => setHealth({ status: 'error' }));
   }, []);
 
   return (
