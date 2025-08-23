@@ -3,7 +3,6 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func
-from docx import Document
 import os, uuid
 
 from ..db import get_db
@@ -11,6 +10,13 @@ from .. import models
 from ..deps import require_role
 
 router = APIRouter(prefix="/reports", tags=["reports"])
+
+# Try to import docx, but don't crash the app if it's missing
+try:
+    from docx import Document
+    DOCX_OK = True
+except Exception:  # ModuleNotFoundError or others
+    DOCX_OK = False
 
 OUT_DIR = "/app/generated"
 os.makedirs(OUT_DIR, exist_ok=True)
@@ -22,6 +28,12 @@ def generate_report(
     db: Session = Depends(get_db),
     user = Depends(require_role(["pss_owner","pss_analyst","client_admin"]))
 ):
+    if not DOCX_OK:
+        raise HTTPException(status_code=503, detail="Report generation not enabled (python-docx not installed).")
+
+    # (safe to import again inside function too)
+    from docx import Document
+
     doc = Document()
     doc.add_heading("PSS Assessor Report", 0)
     doc.add_paragraph(f"Client ID: {client_id}")
