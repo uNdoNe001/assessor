@@ -1,9 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .config import settings
-from .routers import health, questions, policies, tenants
+from .routers import health, questions, policies, tenants, auth, assessments, evidence, reports
+from .db import Base, engine
 
-app = FastAPI(title="PSS Assessor API", version="0.1.0")
+app = FastAPI(title="PSS Assessor API", version="0.2.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -13,11 +14,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(health.router, prefix="/api")
-app.include_router(tenants.router, prefix="/api")
-app.include_router(questions.router, prefix="/api")
-app.include_router(policies.router, prefix="/api")
+app.include_router(health.router,     prefix="/api")
+app.include_router(auth.router,       prefix="/api")   # <-- mounts /api/auth/login + /register
+app.include_router(tenants.router,    prefix="/api")
+app.include_router(questions.router,  prefix="/api")
+app.include_router(policies.router,   prefix="/api")
+app.include_router(assessments.router,prefix="/api")
+app.include_router(evidence.router,   prefix="/api")
+app.include_router(reports.router,    prefix="/api")
 
-# Create DB tables at startup (MVP); replace with Alembic migrations later
-from .db import Base, engine  # noqa: E402
 Base.metadata.create_all(bind=engine)
+
+# Optional: apply RLS SQL if present
+try:
+    with engine.connect() as conn:
+        sql = open("/app/db_sql/rls.sql","r").read()
+        conn.exec_driver_sql(sql)
+except Exception as e:
+    print("RLS setup skipped:", e)
