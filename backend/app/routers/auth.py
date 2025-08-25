@@ -1,13 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from passlib.hash import bcrypt
+from passlib.hash import pbkdf2_sha256 as hasher
 import jwt, datetime
 
 from ..db import get_db
 from .. import models
 from ..config import settings
 from ..schemas import Token, UserOut
+from ..deps import get_current_user  # for /me
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -32,7 +33,7 @@ def register(payload: RegisterIn, db: Session = Depends(get_db)):
         name=payload.name,
         role=payload.role,
         organization_id=org.id,
-        password_hash=bcrypt.hash(payload.password)
+        password_hash=hasher.hash(payload.password),
     )
     db.add(user); db.commit(); db.refresh(user)
     return user
@@ -44,12 +45,17 @@ class LoginIn(BaseModel):
 @router.post("/login", response_model=Token)
 def login(payload: LoginIn, db: Session = Depends(get_db)):
     user = db.query(models.User).filter_by(email=payload.email).first()
-    if not user or not user.password_hash or not (bcrypt.verify(payload.password, user.password_hash)):
+    if not user or not user.password_hash or not hasher.verify(payload.password, user.password_hash):
         raise HTTPException(status_code=401, detail="Invalid credentials")
     now = datetime.datetime.utcnow()
     exp = now + datetime.timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     token = jwt.encode(
         {"sub": str(user.id), "role": user.role, "org_id": user.organization_id, "exp": exp},
-        settings.SECRET_KEY, algorithm="HS256"
+        settings.SECRET_KEY,
+        algorithm="HS256",
     )
     return {"access_token": token, "token_type": "bearer"}
+
+@router.get("/me", response_model=UserOut)
+def me(user: models.User = Depends(get_current_user)):
+    return user
