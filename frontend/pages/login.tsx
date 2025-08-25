@@ -4,8 +4,8 @@ import { useAuth } from "@/context/AuthContext";
 
 export default function Login() {
   const { login, register } = useAuth();
-  const [email, setEmail] = useState("owner@pss.local");
-  const [name, setName] = useState("PSS Owner");
+  const [email, setEmail] = useState("owner@assessor.local");
+  const [name, setName] = useState("Owner");
   const [password, setPassword] = useState("ChangeMe!");
   const [mode, setMode] = useState<"login"|"register">("login");
   const [err, setErr] = useState<string | null>(null);
@@ -23,28 +23,39 @@ export default function Login() {
   };
 
   return (
-    <main style={{ fontFamily: "sans-serif", padding: 24, maxWidth: 420, margin: "40px auto" }}>
-      <h2>{mode === "login" ? "Login" : "Register"}</h2>
-      {mode === "register" && (
-        <div>
-          <label>Name</label><br />
-          <input value={name} onChange={e=>setName(e.target.value)} style={{width:"100%"}} />
+    <main className="page">
+      <header className="header">
+        <div className="brand">Assessor</div>
+      </header>
+
+      <div className="card" style={{maxWidth: 520, margin: "30px auto"}}>
+        <h2 style={{margin: 0}}>Welcome</h2>
+        <p style={{marginTop: 6, color: "var(--muted)"}}>
+          {mode === "login" ? "Log in to your workspace." : "Create your account."}
+        </p>
+
+        {mode === "register" && (
+          <div style={{marginTop: 14}}>
+            <label className="kbd">Name</label>
+            <input className="input" value={name} onChange={e=>setName(e.target.value)} />
+          </div>
+        )}
+        <div style={{marginTop: 14}}>
+          <label className="kbd">Email</label>
+          <input className="input" value={email} onChange={e=>setEmail(e.target.value)} />
         </div>
-      )}
-      <div style={{marginTop:12}}>
-        <label>Email</label><br />
-        <input value={email} onChange={e=>setEmail(e.target.value)} style={{width:"100%"}} />
-      </div>
-      <div style={{marginTop:12}}>
-        <label>Password</label><br />
-        <input type="password" value={password} onChange={e=>setPassword(e.target.value)} style={{width:"100%"}} />
-      </div>
-      {err && <p style={{color:"crimson"}}>{err}</p>}
-      <div style={{marginTop:16, display:"flex", gap:8}}>
-        <button onClick={go}>{mode === "login" ? "Login" : "Register"}</button>
-        <button onClick={()=>setMode(mode==="login"?"register":"login")} type="button">
-          {mode === "login" ? "Switch to Register" : "Switch to Login"}
-        </button>
+        <div style={{marginTop: 14}}>
+          <label className="kbd">Password</label>
+          <input className="input" type="password" value={password} onChange={e=>setPassword(e.target.value)} />
+        </div>
+        {err && <p style={{color:"salmon", marginTop: 10}}>{err}</p>}
+
+        <div style={{marginTop: 16, display:"flex", gap:10}}>
+          <button className="btn" onClick={go}>{mode === "login" ? "Login" : "Register"}</button>
+          <button className="btn" onClick={()=>setMode(mode==="login"?"register":"login")} type="button">
+            {mode === "login" ? "Switch to Register" : "Switch to Login"}
+          </button>
+        </div>
       </div>
     </main>
   );
