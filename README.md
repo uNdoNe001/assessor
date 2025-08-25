@@ -1,6 +1,7 @@
-# PSS Assessor MVP Test Product
+# Assessor
 
-Multi-tenant, RBAC-enabled skeleton for micro-assessments (ISO 27001 + SOC 2), policy generation, and reporting.
+Compliance Gap Analysis Tool — multi-tenant, RBAC-enabled micro-assessments (ISO 27001 + SOC 2), policy generation, and reporting.
+
 
 ## Stack
 - **Frontend**: Next.js (TypeScript)
