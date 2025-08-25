@@ -4,7 +4,7 @@ from .config import settings
 from .routers import health, questions, policies, tenants, auth, assessments, evidence, reports
 from .db import Base, engine
 
-app = FastAPI(title="PSS Assessor API", version="0.2.0")
+app = FastAPI(title="Assessor API", version="0.2.0")
 
 app.add_middleware(
     CORSMiddleware,
