@@ -1,0 +1,89 @@
+:root {
+  --bg-start: #0f172a;   /* slate-900 */
+  --bg-end:   #020617;   /* slate-950 */
+  --card-bg:  rgba(255,255,255,0.06);
+  --card-bd:  rgba(255,255,255,0.12);
+  --ring:     rgba(255,255,255,0.25);
+  --text:     #e5e7eb;   /* gray-200 */
+  --muted:    #94a3b8;   /* slate-400 */
+  --brand-1:  #22d3ee;   /* cyan-400 */
+  --brand-2:  #a78bfa;   /* violet-400 */
+  --accent:   #34d399;   /* emerald-400 */
+}
+
+* { box-sizing: border-box; }
+
+html, body, #__next {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  color: var(--text);
+  background: radial-gradient(1200px 800px at 20% -10%, rgba(34, 211, 238, .12), transparent),
+              radial-gradient(1200px 800px at 80% 120%, rgba(167, 139, 250, .12), transparent),
+              linear-gradient(180deg, var(--bg-start), var(--bg-end));
+  background-attachment: fixed;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji";
+}
+
+a { color: var(--brand-1); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+.page {
+  max-width: 1100px;
+  padding: 32px 20px 64px;
+  margin: 0 auto;
+}
+
+.header {
+  display:flex; align-items:center; justify-content:space-between;
+  gap: 12px; margin-bottom: 20px;
+}
+
+.brand {
+  display:flex; align-items:center; gap: 10px;
+  font-weight: 700; letter-spacing: .2px;
+  background: linear-gradient(90deg, var(--brand-1), var(--brand-2));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  font-size: 22px;
+}
+
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-bd);
+  border-radius: 16px;
+  padding: 18px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 10px 30px rgba(0,0,0,.25);
+}
+
+.grid {
+  display:grid; gap: 14px;
+}
+
+.btn {
+  border: 1px solid var(--ring);
+  border-radius: 12px;
+  padding: 10px 14px;
+  background: linear-gradient(90deg, rgba(34,211,238,.12), rgba(167,139,250,.12));
+  color: var(--text);
+  cursor: pointer;
+  transition: transform .08s ease, background .2s ease, border-color .2s ease;
+}
+.btn:hover { transform: translateY(-1px); border-color: rgba(255,255,255,.35); }
+.btn:disabled { opacity:.5; cursor:not-allowed; transform:none; }
+
+.input, .select {
+  width: 100%;
+  border: 1px solid var(--ring);
+  background: rgba(255,255,255,.06);
+  color: var(--text);
+  padding: 10px 12px;
+  border-radius: 10px;
+}
+
+.kbd {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px; color: var(--muted);
+}
