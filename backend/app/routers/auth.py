@@ -8,7 +8,6 @@ from ..db import get_db
 from .. import models
 from ..config import settings
 from ..schemas import Token, UserOut
-from ..deps import get_current_user  # for /me
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -55,7 +54,3 @@ def login(payload: LoginIn, db: Session = Depends(get_db)):
         algorithm="HS256",
     )
     return {"access_token": token, "token_type": "bearer"}
-
-@router.get("/me", response_model=UserOut)
-def me(user: models.User = Depends(get_current_user)):
-    return user
